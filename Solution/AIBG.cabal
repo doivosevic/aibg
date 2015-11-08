@@ -60,6 +60,8 @@ executable AIBG
   build-depends:       base >=4.8 && <4.9
                      , aeson == 0.10.*
                      , bytestring == 0.10.*
+                     , vector == 0.11.*
+                     , containers == 0.5.*
 
   -- Directories containing source files.
   hs-source-dirs:      src

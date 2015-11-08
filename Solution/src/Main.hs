@@ -6,6 +6,7 @@ import qualified Data.Aeson.TH              as Aes
 import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Lazy.Char8 as LazyBS
 import Control.Monad
+import System.IO (hFlush, stdout)
 
 data ServerInfo = ServerInfo { field                   :: [String]
                              , cellsRemaining          :: Int
@@ -26,15 +27,19 @@ data Move = Move { cells :: [(Int, Int)] }
 Aes.deriveJSON Aes.defaultOptions ''Move
 
 leftest :: ServerInfo -> (Int, Int)
-leftest ServerInfo{..} = minimum [(x, y) | x <- [0..23], y <- [0..23], field !! y !! x == '#']
+leftest ServerInfo{..} = maximum [(x, y) | x <- [0..23], y <- [0..23], field !! y !! x == '#']
 
 makeMove :: ServerInfo -> Move
-makeMove si = Move [(x - 1, y - 1)]
+makeMove si = Move [(y, x + 1)]
     where (x, y) = leftest si
 
 main :: IO ()
 main = forever $ do
     parseRes <- Aes.decodeStrict <$> BS.getLine
     case parseRes of
-        Just servInfo -> LazyBS.putStrLn $ Aes.encode $ makeMove servInfo
+        Just servInfo -> do
+            let move = Aes.encode $ makeMove servInfo
+            LazyBS.putStr move
+            putStr "\n"
+            hFlush stdout
         Nothing       -> error "Server sent malformed JSON"
