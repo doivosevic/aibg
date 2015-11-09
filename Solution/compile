@@ -1,0 +1,6 @@
+#!/bin/bash
+
+cabal update
+cabal sandbox init
+cabal install --only-dep
+cabal build

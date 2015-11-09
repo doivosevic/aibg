@@ -8,7 +8,8 @@ import qualified Data.Set as Set
 import Data.Int
 import Data.Ord
 import Data.List
-import System.IO.Unsafe
+import Hilbert
+import Combinations
 
 newtype Moves = Moves [(Int, Int)]
 
@@ -25,7 +26,8 @@ gridHeight, gridWidth :: Int
 (gridHeight, gridWidth) = (24, 24)
 
 gridIdx :: [(Int, Int)]
-gridIdx = [(x, y) | x <- [0..gridWidth - 1], y <- [0..gridHeight - 1]]
+gridIdx = grid
+-- gridIdx = [(x, y) | x <- [0..gridWidth - 1], y <- [0..gridHeight - 1]]
 
 oneOffset :: [(Int, Int)]
 oneOffset = [(x, y) | x <- [-1..1], y <- [-1..1], x /= 0 || y /= 0]
@@ -72,22 +74,19 @@ logic (x, y) st gs = case () of
 advance :: GameState -> GameState
 advance gs = gs { field = Vec.imap (\i st -> logic (coords i) st gs) (field gs) }
 
-halve :: [a] -> [a]
-halve (x : y : xs) = x : halve xs
-halve xs           = xs
+reduce :: Int -> [a] -> [a]
+reduce _ [] = []
+reduce n xs = head (take n xs) : reduce n (drop n xs)
 
-allMoves :: GameState -> Moves
-allMoves gs = Moves $ halve $ filter (legal gs) gridIdx
+allMoves :: GameState -> [(Int, Int)]
+allMoves gs = moves
+    where moves = filter (legal gs) gridIdx
 
-subsequencesOfSize :: Int -> [a] -> [[a]]
-subsequencesOfSize n xs = let l = length xs
-                          in if n>l then [] else subsequencesBySize xs !! (l-n)
-    where subsequencesBySize [] = [[[]]]
-          subsequencesBySize (x:xs) = let next = subsequencesBySize xs
-                                      in zipWith (++) ([]:next) (map (map (x:)) next ++ [[]])
+windows :: Int -> [a] -> [[a]]
+windows n xs = take (length xs - n + 1) $ map (take n) $ tails xs
 
-kCombinations :: Int -> Moves -> [Moves]
-kCombinations k (Moves mvs) = map Moves $ subsequencesOfSize k mvs
+moveWindows :: Int -> [(Int, Int)] -> [Moves]
+moveWindows k mvs = map Moves $ windows k mvs
 
 evaluate :: GameState -> Int8
 evaluate gs = sum $ map (numCell . (gs `at`)) gridIdx
@@ -98,4 +97,7 @@ goodness (gs@GameState{..}) (Moves mvs) = evaluate $ advance $ gs { field = newF
 
 decide :: GameState -> Moves
 decide gs = maximumBy (comparing (goodness gs)) allCombos
-    where allCombos = kCombinations 1 $ allMoves gs
+    where mvs       = allMoves gs
+          allCombos = moveWindows 3 mvs ++ bestOf
+          sorted1   = sortBy (flip $ comparing (goodness gs . Moves . return)) mvs
+          bestOf    = map Moves $ twoCombinations $ take 20 sorted1
