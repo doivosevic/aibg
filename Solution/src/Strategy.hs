@@ -10,6 +10,8 @@ import Data.Ord
 import Data.List
 import Hilbert
 import Combinations
+import Control.Parallel.Strategies
+import Settings
 
 newtype Moves = Moves [(Int, Int)]
 
@@ -19,15 +21,12 @@ empty, ally, enemy :: Int8
 (empty, ally, enemy) = (0, 1, 2)
 
 data GameState = GameState { field :: Vector Int8
-                           , ammo  :: Int }
+                           , ammo  :: Int
+                           , iterIndex :: Int }
                            deriving (Eq, Ord, Show)
-
-gridHeight, gridWidth :: Int
-(gridHeight, gridWidth) = (24, 24)
 
 gridIdx :: [(Int, Int)]
 gridIdx = grid
--- gridIdx = [(x, y) | x <- [0..gridWidth - 1], y <- [0..gridHeight - 1]]
 
 oneOffset :: [(Int, Int)]
 oneOffset = [(x, y) | x <- [-1..1], y <- [-1..1], x /= 0 || y /= 0]
@@ -56,10 +55,17 @@ neighbors :: GameState -> (Int, Int) -> Int8
 neighbors gs (x, y) = s
     where s = sum $ map (\(i, j) -> numCell $ gs `at` (x + i, y + j)) oneOffset
 
+smart :: GameState -> (Int, Int) -> Bool
+smart gs (x, y) = gs `at` (x, y) == empty && close
+    where all1Neigh = map (\(i, j) -> gs `at` (x + i, y + j)) oneOffset
+          close     = (ally - enemy) `elem` [1, 2, 3]
+          allies    = length (filter (== ally) all1Neigh)
+          enemies   = length (filter (== enemy) all1Neigh)
+
 legal :: GameState -> (Int, Int) -> Bool
 legal gs (x, y) = gs `at` (x, y) == empty && close
-    where all2Neigh = map (\(i, j) -> gs `at` (x + i, y + j)) oneOffset
-          close     = ally `elem` all2Neigh
+    where all1Neigh = map (\(i, j) -> gs `at` (x + i, y + j)) oneOffset
+          close     = ally `elem` all1Neigh
 
 logic :: (Int, Int) -> CellState -> GameState -> CellState
 logic (x, y) st gs = case () of
@@ -79,8 +85,14 @@ reduce _ [] = []
 reduce n xs = head (take n xs) : reduce n (drop n xs)
 
 allMoves :: GameState -> [(Int, Int)]
-allMoves gs = moves
-    where moves = filter (legal gs) gridIdx
+allMoves gs = moves -- ++ movesR ++ movesD
+    where moves = filter (legal gs) grid
+          movesR = filter (legal gs) gridRight
+          movesD = filter (legal gs) gridDown
+
+smartMoves :: GameState -> [(Int, Int)]
+smartMoves gs = moves
+    where moves = filter (smart gs) grid
 
 windows :: Int -> [a] -> [[a]]
 windows n xs = take (length xs - n + 1) $ map (take n) $ tails xs
@@ -89,15 +101,20 @@ moveWindows :: Int -> [(Int, Int)] -> [Moves]
 moveWindows k mvs = map Moves $ windows k mvs
 
 evaluate :: GameState -> Int8
-evaluate gs = sum $ map (numCell . (gs `at`)) gridIdx
+evaluate gs = won + available
+    where won = sum $ map (numCell . (gs `at`)) gridIdx
+          available = fromIntegral (length (smartMoves gs))
 
 goodness :: GameState -> Moves -> Int8
-goodness (gs@GameState{..}) (Moves mvs) = evaluate $ advance $ gs { field = newField }
+goodness (gs@GameState{..}) (Moves mvs) = evaluate oneStep + (evaluate twoStep `div` 2)
     where newField = field Vec.// map (\(x, y) -> (idx (x, y), ally)) mvs
+          oneStep = advance $ gs { field = newField }
+          twoStep = advance oneStep
 
 decide :: GameState -> Moves
-decide gs = maximumBy (comparing (goodness gs)) allCombos
+decide gs = snd $ maximumBy (comparing fst) eval
     where mvs       = allMoves gs
-          allCombos = moveWindows 3 mvs ++ bestOf
+          allCombos = moveWindows 3 mvs -- ++ bestOf
           sorted1   = sortBy (flip $ comparing (goodness gs . Moves . return)) mvs
           bestOf    = map Moves $ twoCombinations $ take 20 sorted1
+          eval      = parMap rpar (\combo -> (goodness gs combo, combo)) allCombos

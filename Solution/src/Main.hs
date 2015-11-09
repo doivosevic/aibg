@@ -44,10 +44,9 @@ charToCell 'O' = enemy
 charToCell _   = error "Bad cell"
 
 serverInfoToGameState :: ServerInfo -> GameState
-serverInfoToGameState ServerInfo{..} = GameState (Vec.fromList $ map charToCell $ concat field) 0
-
-logFile :: Show a => a -> IO ()
-logFile x = appendFile "log.txt" (show x)
+serverInfoToGameState ServerInfo{..} = GameState (Vec.fromList $ map charToCell $ concat field)
+                                                 cellsRemaining
+                                                 currIteration
 
 main :: IO ()
 main = forever $ do
@@ -55,7 +54,6 @@ main = forever $ do
     case parseRes of
         Just servInfo -> do
             let move = Aes.encode $ makeMove servInfo
-            logFile move
             LazyBS.putStr move
             putStr "\n"
             hFlush stdout

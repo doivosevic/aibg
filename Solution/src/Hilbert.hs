@@ -2,9 +2,19 @@ module Hilbert where
 
 import Data.Bits
 import Data.List
+import Settings
 
 grid :: [(Int, Int)]
 grid = nub $ map (scale . d2xy 32) [0..32 * 32 - 1]
+
+gridRight :: [(Int, Int)]
+gridRight = map (shiftHilbert (3, 0)) grid
+
+gridDown :: [(Int, Int)]
+gridDown = map (shiftHilbert (0, 3)) grid
+
+shiftHilbert :: (Int, Int) -> (Int, Int) -> (Int, Int)
+shiftHilbert (dx, dy) (x, y) = ((x + dx) `mod` gridWidth, (y + dy) `mod` gridHeight)
 
 scale :: (Int, Int) -> (Int, Int)
 scale (x, y) = (floor (fromIntegral x / 32 * 24), floor (fromIntegral y / 32 * 24))
