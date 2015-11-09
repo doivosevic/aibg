@@ -80,10 +80,6 @@ logic (x, y) st gs = case () of
 advance :: GameState -> GameState
 advance gs = gs { field = Vec.imap (\i st -> logic (coords i) st gs) (field gs) }
 
-reduce :: Int -> [a] -> [a]
-reduce _ [] = []
-reduce n xs = head (take n xs) : reduce n (drop n xs)
-
 allMoves :: GameState -> [(Int, Int)]
 allMoves gs = moves -- ++ movesR ++ movesD
     where moves = filter (legal gs) grid
@@ -106,7 +102,7 @@ evaluate gs = won + available
           available = fromIntegral (length (smartMoves gs))
 
 goodness :: GameState -> Moves -> Int8
-goodness (gs@GameState{..}) (Moves mvs) = evaluate oneStep + (evaluate twoStep `div` 2)
+goodness (gs@GameState{..}) (Moves mvs) = evaluate oneStep + evaluate twoStep
     where newField = field Vec.// map (\(x, y) -> (idx (x, y), ally)) mvs
           oneStep = advance $ gs { field = newField }
           twoStep = advance oneStep
