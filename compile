@@ -1,5 +1,6 @@
 #!/bin/bash
 
+cd Solution
 cabal update
 cabal sandbox init
 cabal install --only-dep
