@@ -94,8 +94,10 @@ moveWindows :: Int -> [(Int8, Int8)] -> [Moves]
 moveWindows k mvs = map Moves $ windows k mvs
 
 evaluate :: GameState -> Int
-evaluate gs = won * 5 + available
-    where won = sum $ map (numCell . (gs `at`)) gridIdx
+evaluate gs = allies - enemies + available
+    where allies  = length $ filter (== ally) $ map (gs `at`) gridIdx
+          enemies = length $ filter (== enemy) $ map (gs `at`) gridIdx
+          won = allies - enemies
           available = fromIntegral (length (smartMoves gs))
 
 goodness :: GameState -> Moves -> Int
