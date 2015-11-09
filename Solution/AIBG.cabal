@@ -47,9 +47,7 @@ cabal-version:       >=1.10
 
 
 executable AIBG
-  ghc-options:         -O2
-                       -threaded
-                       "-with-rtsopts=-N"
+  ghc-options:         -O3
   -- .hs or .lhs file containing the Main module.
   main-is:             Main.hs
 
@@ -65,7 +63,6 @@ executable AIBG
                      , bytestring == 0.10.*
                      , vector == 0.11.*
                      , containers == 0.5.*
-                     , parallel == 3.2.*
 
   -- Directories containing source files.
   hs-source-dirs:      src

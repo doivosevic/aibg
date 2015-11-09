@@ -35,7 +35,7 @@ makeMove :: ServerInfo -> Move
 makeMove = movesToMove . decide . serverInfoToGameState
 
 movesToMove :: Moves -> Move
-movesToMove (Moves mvs) = Move $ map (\(x, y) -> (y, x)) mvs
+movesToMove (Moves mvs) = Move $ map (\(x, y) -> (fromIntegral y, fromIntegral x)) mvs
 
 charToCell :: Char -> CellState
 charToCell '.' = empty

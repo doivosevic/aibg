@@ -1,4 +1,6 @@
 module Settings where
 
-gridHeight, gridWidth :: Int
+import Data.Int
+
+gridHeight, gridWidth :: Int8
 (gridHeight, gridWidth) = (24, 24)
