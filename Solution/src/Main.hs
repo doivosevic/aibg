@@ -7,8 +7,8 @@ import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Lazy.Char8 as LazyBS
 import Control.Monad
 import System.IO (hFlush, stdout)
-import Strategy (Moves(..), GameState(GameState), CellState(..), decide)
-import qualified Data.Vector as Vec
+import Strategy (Moves(..), GameState(GameState), CellState(..), decide, empty, ally, enemy)
+import qualified Data.Vector.Unboxed as Vec
 
 data ServerInfo = ServerInfo { field                   :: [String]
                              , cellsRemaining          :: Int
@@ -38,9 +38,9 @@ movesToMove :: Moves -> Move
 movesToMove (Moves mvs) = Move $ map (\(x, y) -> (y, x)) mvs
 
 charToCell :: Char -> CellState
-charToCell '.' = Empty
-charToCell '#' = Ally
-charToCell 'O' = Enemy
+charToCell '.' = empty
+charToCell '#' = ally
+charToCell 'O' = enemy
 charToCell _   = error "Bad cell"
 
 serverInfoToGameState :: ServerInfo -> GameState

@@ -1,8 +1,8 @@
 {-# LANGUAGE RecordWildCards #-}
 module Strategy where
 
-import Data.Vector (Vector)
-import qualified Data.Vector as Vec
+import Data.Vector.Unboxed (Vector)
+import qualified Data.Vector.Unboxed as Vec
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Int
@@ -12,9 +12,12 @@ import System.IO.Unsafe
 
 newtype Moves = Moves [(Int, Int)]
 
-data CellState = Empty | Ally | Enemy deriving (Eq, Ord, Read, Show)
+type CellState = Int8
 
-data GameState = GameState { field :: Vector CellState
+empty, ally, enemy :: Int8
+(empty, ally, enemy) = (0, 1, 2)
+
+data GameState = GameState { field :: Vector Int8
                            , ammo  :: Int }
                            deriving (Eq, Ord, Show)
 
@@ -42,36 +45,39 @@ idx (x, y)
       && y >= 0 && y < gridHeight = x + y * gridWidth
     | otherwise                   = idx (x `mod` gridWidth, y `mod` gridHeight)
 
-numCell :: CellState -> Int
-numCell Empty = 0
-numCell Ally  = 1
-numCell Enemy = -1
+numCell :: CellState -> Int8
+numCell c | c == empty = 0
+          | c == ally  = 1
+          | c == enemy = -1
 
-neighbors :: GameState -> (Int, Int) -> Int
+neighbors :: GameState -> (Int, Int) -> Int8
 neighbors gs (x, y) = s
     where s = sum $ map (\(i, j) -> numCell $ gs `at` (x + i, y + j)) oneOffset
 
 legal :: GameState -> (Int, Int) -> Bool
-legal gs (x, y) = gs `at` (x, y) == Empty && close
+legal gs (x, y) = gs `at` (x, y) == empty && close
     where all2Neigh = map (\(i, j) -> gs `at` (x + i, y + j)) oneOffset
-          close     = Ally `elem` all2Neigh
+          close     = ally `elem` all2Neigh
 
 logic :: (Int, Int) -> CellState -> GameState -> CellState
-logic (x, y) st gs = case st of
-    Empty | ns == 3            -> Ally
-          | ns == -3           -> Enemy
-          | otherwise          -> Empty
-    Ally  | ns `elem` [2, 3]   -> Ally
-          | otherwise          -> Empty
-    Enemy | ns `elem` [-2, -3] -> Enemy
-          | otherwise          -> Empty
-    where ns = neighbors gs (x, y)
+logic (x, y) st gs = case () of
+    _ | st == empty && ns == 3            -> ally
+      | st == empty && ns == -3           -> enemy
+      | st == empty                       -> empty
+      | st == ally && ns `elem` [2, 3]    -> ally
+      | st == enemy && ns `elem` [-2, -3] -> enemy
+      | otherwise                         -> empty
+      where ns = neighbors gs (x, y)
 
 advance :: GameState -> GameState
 advance gs = gs { field = Vec.imap (\i st -> logic (coords i) st gs) (field gs) }
 
+halve :: [a] -> [a]
+halve (x : y : xs) = x : halve xs
+halve xs           = xs
+
 allMoves :: GameState -> Moves
-allMoves gs = Moves $ filter (legal gs) gridIdx
+allMoves gs = Moves $ halve $ filter (legal gs) gridIdx
 
 subsequencesOfSize :: Int -> [a] -> [[a]]
 subsequencesOfSize n xs = let l = length xs
@@ -83,13 +89,13 @@ subsequencesOfSize n xs = let l = length xs
 kCombinations :: Int -> Moves -> [Moves]
 kCombinations k (Moves mvs) = map Moves $ subsequencesOfSize k mvs
 
-evaluate :: GameState -> Int
+evaluate :: GameState -> Int8
 evaluate gs = sum $ map (numCell . (gs `at`)) gridIdx
 
-goodness :: GameState -> Moves -> Int
+goodness :: GameState -> Moves -> Int8
 goodness (gs@GameState{..}) (Moves mvs) = evaluate $ advance $ gs { field = newField }
-    where newField = field Vec.// map (\(x, y) -> (idx (x, y), Ally)) mvs
+    where newField = field Vec.// map (\(x, y) -> (idx (x, y), ally)) mvs
 
 decide :: GameState -> Moves
 decide gs = maximumBy (comparing (goodness gs)) allCombos
-    where allCombos = kCombinations 2 $ allMoves gs
+    where allCombos = kCombinations 1 $ allMoves gs
